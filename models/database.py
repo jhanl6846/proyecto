@@ -2,23 +2,17 @@ import sqlite3
 import os
 import random
 from models.entidades import hashear_contrasena
-
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB_PATH = os.path.abspath(os.environ.get("TIENDA_DB_PATH", os.path.join(BASE_DIR, "tienda.db")))
-
-
 def _connect():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
-
 def _schema_exists(conn):
     return conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'empleados'"
     ).fetchone() is not None
-
 def get_db():
     conn = _connect()
     if not _schema_exists(conn):
@@ -26,11 +20,9 @@ def get_db():
         init_db()
         conn = _connect()
     return conn
-
 def init_db():
     conn = _connect()
     c = conn.cursor()
-
     c.execute("""
         CREATE TABLE IF NOT EXISTS empleados (
             id TEXT PRIMARY KEY,
@@ -43,7 +35,6 @@ def init_db():
             telefono TEXT
         )
     """)
-
     c.execute("""
         CREATE TABLE IF NOT EXISTS clientes (
             id TEXT PRIMARY KEY,
@@ -54,7 +45,6 @@ def init_db():
             telefono TEXT
         )
     """)
-
     c.execute("""
         CREATE TABLE IF NOT EXISTS juegos (
             id INTEGER PRIMARY KEY,
@@ -73,7 +63,6 @@ def init_db():
             stock INTEGER
         )
     """)
-
     c.execute("""
         CREATE TABLE IF NOT EXISTS ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +77,6 @@ def init_db():
             fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
     # Empleado admin por defecto si no existe
     admin = c.execute("SELECT * FROM empleados WHERE id='E001'").fetchone()
     if not admin:
@@ -96,10 +84,8 @@ def init_db():
             INSERT INTO empleados (id, rango, contrasena, nombre, edad, cedula, direccion, telefono)
             VALUES ('E001', 'administrador', ?, 'rodolfo', 45, 123456789, 'carrera 7# 14 - 36', '3158046788')
         """, (hashear_contrasena("123456"),))
-
     conn.commit()
     conn.close()
-
 def cargar_juegos_api(juegos_json):
     """Carga los juegos desde la API si la tabla está vacía."""
     conn = get_db()
