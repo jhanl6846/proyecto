@@ -18,7 +18,7 @@ Aplicacion Flask para administrar una tienda de juegos: autenticacion por roles,
 ```text
 app.py                  Punto de entrada de Flask y configuracion Swagger
 models/database.py      Conexion, ruta e inicializacion de SQLite
-models/entidades.py     Clases de dominio: Empleado, Juego y Cliente
+models/entidades.py     Clases de dominio y persistencia: Empleado, Juego, Cliente y Venta
 routes/                 Blueprints por modulo
 templates/              Vistas HTML/Jinja
 static/css/main.css     Estilos de la interfaz
@@ -26,6 +26,17 @@ static/js/main.js       Interacciones del menu y flashes
 utils/clientes.py       Helpers compartidos de clientes
 utils/decorators.py     Decoradores de autenticacion y permisos
 ```
+
+## Organizacion con clases
+
+Las clases en `models/entidades.py` tienen protagonismo en la logica de datos:
+
+- `Empleado`: autenticar/buscar empleados, listar, contar, crear y eliminar.
+- `Cliente`: buscar por cedula, listar registrados, contar registrados, crear, eliminar y asegurar el cliente anonimo.
+- `Juego`: buscar, contar, crear, eliminar y aplicar descuentos.
+- `Venta`: listar ventas, contar ventas, calcular ingresos y registrar ventas descontando stock.
+
+Las rutas se encargan principalmente de recibir formularios, mostrar mensajes y redirigir. La lectura/escritura de base de datos se concentra progresivamente en las clases.
 
 ## Ejecutar
 

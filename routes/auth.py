@@ -2,7 +2,6 @@
 # Rutas de autenticación: login y logout
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from models.database import get_db
 from models.entidades import Empleado
 
 auth_bp = Blueprint("auth", __name__)
@@ -40,11 +39,7 @@ def login():
         emp_id = request.form.get("id", "").upper()
         contrasena = request.form.get("contrasena", "")
 
-        conn = get_db()
-        fila = conn.execute("SELECT * FROM empleados WHERE id = ?", (emp_id,)).fetchone()
-        conn.close()
-
-        empleado = Empleado.desde_fila_db(fila)
+        empleado = Empleado.buscar_por_id(emp_id)
 
         if not empleado:
             flash("ID de empleado no encontrado.", "error")

@@ -3,8 +3,6 @@
 
 from functools import wraps
 from flask import session, redirect, url_for, flash
-
-
 def requiere_login(f):
     """Redirige al login si el empleado no tiene sesión activa."""
     @wraps(f)
@@ -13,8 +11,6 @@ def requiere_login(f):
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
     return decorated
-
-
 def requiere_admin(f):
     """Permite el acceso solo a empleados con rango administrador."""
     @wraps(f)

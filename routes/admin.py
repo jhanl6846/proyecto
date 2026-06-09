@@ -4,14 +4,11 @@
 import random
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models.database import get_db
-from models.entidades import hashear_contrasena
+from models.entidades import Cliente, Empleado, Juego, Venta
 from utils.clientes import (
     buscar_cliente_por_cedula,
     buscar_empleado_por_cedula,
-    contar_clientes_registrados,
     datos_cliente_desde_empleado,
-    listar_clientes_registrados,
-    siguiente_cliente_id,
 )
 from utils.decorators import requiere_admin
 
@@ -26,15 +23,13 @@ CAMPO_DESCUENTO = {
 @admin_bp.route("/")
 @requiere_admin
 def dashboard():
-    conn = get_db()
     stats = {
-        "total_juegos":    conn.execute("SELECT COUNT(*) FROM juegos").fetchone()[0],
-        "total_empleados": conn.execute("SELECT COUNT(*) FROM empleados").fetchone()[0],
-        "total_clientes":  contar_clientes_registrados(conn),
-        "total_ventas":    conn.execute("SELECT COUNT(*) FROM ventas").fetchone()[0],
-        "ingresos":        conn.execute("SELECT SUM(total) FROM ventas").fetchone()[0] or 0,
+        "total_juegos":    Juego.contar(),
+        "total_empleados": Empleado.contar(),
+        "total_clientes":  Cliente.contar_registrados(),
+        "total_ventas":    Venta.contar(),
+        "ingresos":        Venta.ingresos_totales(),
     }
-    conn.close()
     return render_template("admin/dashboard.html", **stats)
 
 
@@ -43,9 +38,7 @@ def dashboard():
 @admin_bp.route("/empleados")
 @requiere_admin
 def lista_empleados():
-    conn = get_db()
-    empleados = conn.execute("SELECT * FROM empleados").fetchall()
-    conn.close()
+    empleados = Empleado.listar_todos()
     return render_template("admin/empleados.html", empleados=empleados)
 
 
@@ -53,7 +46,6 @@ def lista_empleados():
 @requiere_admin
 def nuevo_empleado():
     if request.method == "POST":
-        conn = get_db()
         try:
             cedula_str = request.form.get("cedula", "").strip()
             if not cedula_str:
@@ -61,41 +53,27 @@ def nuevo_empleado():
                 return render_template("admin/nuevo_empleado.html")
 
             cedula = int(cedula_str)
-            if conn.execute("SELECT id FROM empleados WHERE cedula = ?", (cedula,)).fetchone():
+            if Empleado.buscar_por_cedula(cedula):
                 flash(f"Ya existe un empleado con la cédula {cedula}.", "error")
                 return render_template("admin/nuevo_empleado.html")
-
-            max_id = conn.execute("SELECT MAX(id) FROM empleados").fetchone()[0]
-            siguiente = int(max_id[1:]) + 1 if max_id else 1
-            nuevo_id = f"E{siguiente:03}"
 
             direccion = request.form.get("direccion", "").strip() or \
                 f"calle {random.randint(1, 100)} # {random.randint(1, 100)}-{random.randint(1, 100)}"
             telefono = request.form.get("telefono", "").strip() or \
                 str(random.randint(3_000_000_000, 3_999_999_999))
 
-            conn.execute(
-                """
-                INSERT INTO empleados (id, rango, contrasena, nombre, edad, cedula, direccion, telefono)
-                VALUES (?,?,?,?,?,?,?,?)
-                """,
-                (
-                    nuevo_id,
-                    request.form["rango"],
-                    hashear_contrasena(request.form["contrasena"]),
-                    request.form["nombre"].lower(),
-                    int(request.form["edad"]),
-                    cedula,
-                    direccion,
-                    telefono,
-                ),
+            nuevo_id = Empleado.crear(
+                nombre=request.form["nombre"],
+                rango=request.form["rango"],
+                contrasena=request.form["contrasena"],
+                edad=request.form["edad"],
+                cedula=cedula,
+                direccion=direccion,
+                telefono=telefono,
             )
-            conn.commit()
             flash(f"Empleado {nuevo_id} registrado con éxito.", "success")
         except Exception as e:
             flash(f"Error al registrar: {e}", "error")
-        finally:
-            conn.close()
         return redirect(url_for("admin.lista_empleados"))
 
     return render_template("admin/nuevo_empleado.html")
@@ -104,29 +82,22 @@ def nuevo_empleado():
 @admin_bp.route("/empleados/eliminar/<emp_id>", methods=["POST"])
 @requiere_admin
 def eliminar_empleado(emp_id):
-    conn = get_db()
     try:
-        emp = conn.execute("SELECT * FROM empleados WHERE id = ?", (emp_id,)).fetchone()
+        emp = Empleado.buscar_por_id(emp_id)
         if not emp:
             flash("Empleado no encontrado.", "error")
-        elif emp["rango"] == "administrador":
-            total_admins = conn.execute(
-                "SELECT COUNT(*) FROM empleados WHERE rango = 'administrador'"
-            ).fetchone()[0]
+        elif emp.rango == "administrador":
+            total_admins = Empleado.contar_administradores()
             if total_admins <= 1:
                 flash("No se puede eliminar el único administrador del sistema.", "error")
             else:
-                conn.execute("DELETE FROM empleados WHERE id = ?", (emp_id,))
-                conn.commit()
+                Empleado.eliminar(emp_id)
                 flash(f"Empleado {emp_id} eliminado correctamente.", "success")
         else:
-            conn.execute("DELETE FROM empleados WHERE id = ?", (emp_id,))
-            conn.commit()
+            Empleado.eliminar(emp_id)
             flash(f"Empleado {emp_id} eliminado correctamente.", "success")
     except Exception as e:
         flash(f"Error al eliminar: {e}", "error")
-    finally:
-        conn.close()
     return redirect(url_for("admin.lista_empleados"))
 
 
@@ -135,9 +106,7 @@ def eliminar_empleado(emp_id):
 @admin_bp.route("/clientes")
 @requiere_admin
 def lista_clientes():
-    conn = get_db()
-    clientes = listar_clientes_registrados(conn)
-    conn.close()
+    clientes = Cliente.listar_registrados()
     return render_template("admin/clientes.html", clientes=clientes)
 
 
@@ -162,27 +131,18 @@ def nuevo_cliente():
                 return redirect(url_for("admin.nuevo_cliente", cedula=cedula, next=next_url))
 
             empleado_encontrado = buscar_empleado_por_cedula(conn, cedula)
-            nuevo_id = siguiente_cliente_id(conn)
             nombre = request.form.get("nombre", "").strip().lower()
             edad = request.form.get("edad", "").strip()
             direccion = request.form.get("direccion", "").strip()
             telefono = request.form.get("telefono", "").strip()
-            conn.execute(
-                """
-                INSERT INTO clientes (id, nombre, edad, cedula, direccion, telefono)
-                VALUES (?,?,?,?,?,?)
-                """,
-                (
-                    nuevo_id,
-                    nombre,
-                    int(edad),
-                    cedula,
-                    direccion or
-                        f"carrera {random.randint(1, 100)} # {random.randint(1, 100)}-{random.randint(1, 100)}",
-                    telefono or str(random.randint(3_000_000_000, 3_999_999_999)),
-                ),
+            nuevo_id = Cliente.crear(
+                nombre=nombre,
+                edad=edad,
+                cedula=cedula,
+                direccion=direccion or
+                    f"carrera {random.randint(1, 100)} # {random.randint(1, 100)}-{random.randint(1, 100)}",
+                telefono=telefono or str(random.randint(3_000_000_000, 3_999_999_999)),
             )
-            conn.commit()
             flash(f"Cliente {nuevo_id} registrado con éxito.", "success")
         except Exception as e:
             flash(f"Error al registrar: {e}", "error")
@@ -214,19 +174,15 @@ def nuevo_cliente():
 @admin_bp.route("/clientes/eliminar/<cli_id>", methods=["POST"])
 @requiere_admin
 def eliminar_cliente(cli_id):
-    conn = get_db()
     try:
-        cliente = conn.execute("SELECT * FROM clientes WHERE id = ?", (cli_id,)).fetchone()
+        cliente = Cliente.buscar_por_id(cli_id)
         if not cliente:
             flash("Cliente no encontrado.", "error")
         else:
-            conn.execute("DELETE FROM clientes WHERE id = ?", (cli_id,))
-            conn.commit()
+            Cliente.eliminar(cli_id)
             flash(f"Cliente {cli_id} eliminado correctamente.", "success")
     except Exception as e:
         flash(f"Error al eliminar: {e}", "error")
-    finally:
-        conn.close()
     return redirect(url_for("admin.lista_clientes"))
 
 
@@ -235,9 +191,7 @@ def eliminar_cliente(cli_id):
 @admin_bp.route("/ventas")
 @requiere_admin
 def registro_ventas():
-    conn = get_db()
-    ventas = conn.execute("SELECT * FROM ventas ORDER BY fecha DESC").fetchall()
-    conn.close()
+    ventas = Venta.listar_todas()
     return render_template("admin/ventas.html", ventas=ventas)
 
 

@@ -4,6 +4,7 @@
 import random
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from models.database import get_db
+from models.entidades import Cliente, Juego, Venta
 from utils.clientes import (
     buscar_cliente_por_cedula,
     buscar_empleado_por_cedula,
@@ -31,16 +32,11 @@ def dashboard():
       302:
         description: Redirección al login si no hay sesión activa.
     """
-    conn = get_db()
     stats = {
-        "total_juegos":   conn.execute("SELECT COUNT(*) FROM juegos").fetchone()[0],
-        "total_clientes": contar_clientes_registrados(conn),
-        "mis_ventas":     conn.execute(
-            "SELECT COUNT(*) FROM ventas WHERE vendedor = ?",
-            (session["empleado_nombre"],),
-        ).fetchone()[0],
+        "total_juegos":   Juego.contar(),
+        "total_clientes": Cliente.contar_registrados(),
+        "mis_ventas":     Venta.contar_por_vendedor(session["empleado_nombre"]),
     }
-    conn.close()
     return render_template("vendedor/dashboard.html", **stats)
 
 
@@ -58,12 +54,7 @@ def mis_ventas():
       302:
         description: Redireccion al login si no hay sesion activa.
     """
-    conn = get_db()
-    ventas = conn.execute(
-        "SELECT * FROM ventas WHERE vendedor = ? ORDER BY fecha DESC",
-        (session["empleado_nombre"],),
-    ).fetchall()
-    conn.close()
+    ventas = Venta.listar_por_vendedor(session["empleado_nombre"])
     return render_template("admin/ventas.html", ventas=ventas)
 
 
@@ -81,9 +72,7 @@ def lista_clientes():
       302:
         description: Redirección al login si no hay sesión activa.
     """
-    conn = get_db()
-    clientes = listar_clientes_registrados(conn)
-    conn.close()
+    clientes = Cliente.listar_registrados()
     return render_template("vendedor/clientes.html", clientes=clientes)
 
 
@@ -147,27 +136,18 @@ def nuevo_cliente():
                 return redirect(url_for("vendedor.nuevo_cliente", cedula=cedula, next=next_url))
 
             empleado_encontrado = buscar_empleado_por_cedula(conn, cedula)
-            nuevo_id = siguiente_cliente_id(conn)
             nombre = request.form.get("nombre", "").strip().lower()
             edad = request.form.get("edad", "").strip()
             direccion = request.form.get("direccion", "").strip()
             telefono = request.form.get("telefono", "").strip()
-            conn.execute(
-                """
-                INSERT INTO clientes (id, nombre, edad, cedula, direccion, telefono)
-                VALUES (?,?,?,?,?,?)
-                """,
-                (
-                    nuevo_id,
-                    nombre,
-                    int(edad),
-                    cedula,
-                    direccion or
-                        f"carrera {random.randint(1, 100)} # {random.randint(1, 100)}-{random.randint(1, 100)}",
-                    telefono or str(random.randint(3_000_000_000, 3_999_999_999)),
-                ),
+            nuevo_id = Cliente.crear(
+                nombre=nombre,
+                edad=edad,
+                cedula=cedula,
+                direccion=direccion or
+                    f"carrera {random.randint(1, 100)} # {random.randint(1, 100)}-{random.randint(1, 100)}",
+                telefono=telefono or str(random.randint(3_000_000_000, 3_999_999_999)),
             )
-            conn.commit()
             flash(f"Cliente {nuevo_id} registrado con éxito.", "success")
         except Exception as e:
             flash(f"Error: {e}", "error")
