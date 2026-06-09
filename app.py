@@ -119,5 +119,5 @@ else:
 #        como crear el archivo requirements.txt
 # pip freeze > requirements.txt
  #pip install Flask flasgger requests
-#  cd proyecto-_programacion
+# cd ~/proyecto
 # git pull origin main
