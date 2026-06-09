@@ -75,10 +75,7 @@ def nuevo_empleado():
         except Exception as e:
             flash(f"Error al registrar: {e}", "error")
         return redirect(url_for("admin.lista_empleados"))
-
     return render_template("admin/nuevo_empleado.html")
-
-
 @admin_bp.route("/empleados/eliminar/<emp_id>", methods=["POST"])
 @requiere_admin
 def eliminar_empleado(emp_id):
@@ -195,7 +192,7 @@ def registro_ventas():
     return render_template("admin/ventas.html", ventas=ventas)
 
 
-# ──── Juegos (solo admin) ────────────────────────────────────────────────────
+# ──── Juegos ────────────────────────────────────────────────────
 
 @admin_bp.route("/juegos/nuevo", methods=["GET", "POST"])
 @requiere_admin
