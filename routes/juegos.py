@@ -4,6 +4,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.database import get_db
 from models.entidades import Juego, Cliente
+from utils.clientes import listar_clientes_registrados
 from utils.decorators import requiere_login
 
 juegos_bp = Blueprint("juegos", __name__)
@@ -58,9 +59,7 @@ def detalle(juego_id):
     conn = get_db()
     fila_juego     = conn.execute("SELECT * FROM juegos WHERE id = ?", (juego_id,)).fetchone()
     # Excluir cliente anónimo C000 de la lista de selección
-    filas_clientes = conn.execute(
-        "SELECT * FROM clientes WHERE id != 'C000' ORDER BY nombre"
-    ).fetchall()
+    filas_clientes = listar_clientes_registrados(conn)
     conn.close()
 
     if not fila_juego:

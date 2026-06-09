@@ -4,19 +4,10 @@
 import random
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from models.database import get_db
+from utils.clientes import contar_clientes_registrados, listar_clientes_registrados, siguiente_cliente_id
 from utils.decorators import requiere_login
 
 vendedor_bp = Blueprint("vendedor", __name__)
-
-CLIENTE_ANONIMO_ID = "C000"
-
-
-def _siguiente_cliente_id(conn):
-    max_id = conn.execute(
-        "SELECT MAX(CAST(SUBSTR(id, 2) AS INTEGER)) FROM clientes WHERE id != ?",
-        (CLIENTE_ANONIMO_ID,),
-    ).fetchone()[0]
-    return f"C{(max_id or 0) + 1:03}"
 
 
 @vendedor_bp.route("/")
@@ -36,10 +27,7 @@ def dashboard():
     conn = get_db()
     stats = {
         "total_juegos":   conn.execute("SELECT COUNT(*) FROM juegos").fetchone()[0],
-        "total_clientes": conn.execute(
-            "SELECT COUNT(*) FROM clientes WHERE id != ?",
-            (CLIENTE_ANONIMO_ID,),
-        ).fetchone()[0],
+        "total_clientes": contar_clientes_registrados(conn),
         "mis_ventas":     conn.execute(
             "SELECT COUNT(*) FROM ventas WHERE vendedor = ?",
             (session["empleado_nombre"],),
@@ -52,6 +40,17 @@ def dashboard():
 @vendedor_bp.route("/ventas")
 @requiere_login
 def mis_ventas():
+    """
+    Mostrar las ventas registradas por el vendedor actual.
+    ---
+    tags:
+      - Vendedor
+    responses:
+      200:
+        description: Pagina HTML con las ventas filtradas por el vendedor autenticado.
+      302:
+        description: Redireccion al login si no hay sesion activa.
+    """
     conn = get_db()
     ventas = conn.execute(
         "SELECT * FROM ventas WHERE vendedor = ? ORDER BY fecha DESC",
@@ -76,10 +75,7 @@ def lista_clientes():
         description: Redirección al login si no hay sesión activa.
     """
     conn = get_db()
-    clientes = conn.execute(
-        "SELECT * FROM clientes WHERE id != ?",
-        (CLIENTE_ANONIMO_ID,),
-    ).fetchall()
+    clientes = listar_clientes_registrados(conn)
     conn.close()
     return render_template("vendedor/clientes.html", clientes=clientes)
 
@@ -126,9 +122,13 @@ def nuevo_cliente():
       302:
         description: Redirección a la lista de clientes tras crear correctamente.
     """
+    next_url = request.values.get("next") or url_for("vendedor.lista_clientes")
+    if not next_url.startswith("/"):
+        next_url = url_for("vendedor.lista_clientes")
+
     if request.method == "POST":
         conn = get_db()
-        nuevo_id = _siguiente_cliente_id(conn)
+        nuevo_id = siguiente_cliente_id(conn)
         try:
             conn.execute(
                 """
@@ -152,6 +152,6 @@ def nuevo_cliente():
             flash(f"Error: {e}", "error")
         finally:
             conn.close()
-        return redirect(url_for("vendedor.lista_clientes"))
+        return redirect(next_url)
 
-    return render_template("vendedor/nuevo_cliente.html")
+    return render_template("vendedor/nuevo_cliente.html", next_url=next_url)

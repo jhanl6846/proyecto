@@ -72,6 +72,13 @@
           <option value="{{ c.id }}">{{ c.nombre }} ({{ c.id }})</option>
           {% endfor %}
         </select>
+        <div class="inline-action">
+          {% if session.empleado_rango == 'administrador' %}
+          <a href="{{ url_for('admin.nuevo_cliente', next=url_for('juegos.detalle', juego_id=juego.id)) }}" class="btn-secondary btn-full">Agregar cliente</a>
+          {% else %}
+          <a href="{{ url_for('vendedor.nuevo_cliente', next=url_for('juegos.detalle', juego_id=juego.id)) }}" class="btn-secondary btn-full">Agregar cliente</a>
+          {% endif %}
+        </div>
       </div>
       <div class="form-group">
         <label>Cantidad</label>

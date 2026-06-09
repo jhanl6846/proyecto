@@ -530,6 +530,10 @@ select option { background: var(--bg3); }
   font-weight: 400;
 }
 
+.inline-action {
+  margin-top: 10px;
+}
+
 .accion-peligro {
   border: 1px solid rgba(231, 76, 60, 0.35) !important;
 }
@@ -679,6 +683,8 @@ body.menu-open .side-overlay {
 .stat-card {
   display: block;
   color: var(--text);
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-card:hover {
@@ -688,18 +694,59 @@ body.menu-open .side-overlay {
 
 .stat-icon,
 .action-icon {
-  min-height: 34px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
+  justify-content: center;
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", var(--font);
-  font-size: 28px;
+  font-size: 25px;
   letter-spacing: 0;
-  color: var(--accent2);
+  color: #fff;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.28), transparent 28%),
+    linear-gradient(135deg, rgba(124, 92, 252, 0.95), rgba(92, 138, 252, 0.72));
+  border: 1px solid rgba(154, 130, 255, 0.5);
+  border-radius: 14px;
+  box-shadow:
+    0 10px 24px rgba(92, 91, 252, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  margin-bottom: 12px;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
 }
 
 .action-icon {
+  margin: 0 auto 6px;
+  font-size: 24px;
+}
+
+.stat-card.highlight .stat-icon {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.3), transparent 28%),
+    linear-gradient(135deg, rgba(245, 158, 11, 0.98), rgba(124, 92, 252, 0.78));
+  border-color: rgba(245, 158, 11, 0.55);
+  box-shadow:
+    0 10px 26px rgba(245, 158, 11, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.stat-card:hover .stat-icon,
+.action-card:hover .action-icon {
+  transform: translateY(-2px) scale(1.04);
+  border-color: rgba(196, 160, 255, 0.82);
+  box-shadow:
+    0 14px 30px rgba(124, 92, 252, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.action-card {
   justify-content: center;
-  font-size: 30px;
+  min-height: 130px;
+}
+
+.action-card span:last-child {
+  color: #bcd7ff;
+  font-weight: 700;
 }
 
 @media (max-width: 600px) {

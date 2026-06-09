@@ -5,6 +5,7 @@ import random
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from models.database import get_db
 from models.entidades import hashear_contrasena
+from utils.clientes import contar_clientes_registrados, listar_clientes_registrados, siguiente_cliente_id
 from utils.decorators import requiere_admin
 
 admin_bp = Blueprint("admin", __name__)
@@ -15,17 +16,6 @@ CAMPO_DESCUENTO = {
     "editorial": "publisher",
 }
 
-CLIENTE_ANONIMO_ID = "C000"
-
-
-def _siguiente_cliente_id(conn):
-    max_id = conn.execute(
-        "SELECT MAX(CAST(SUBSTR(id, 2) AS INTEGER)) FROM clientes WHERE id != ?",
-        (CLIENTE_ANONIMO_ID,),
-    ).fetchone()[0]
-    return f"C{(max_id or 0) + 1:03}"
-
-
 @admin_bp.route("/")
 @requiere_admin
 def dashboard():
@@ -33,10 +23,7 @@ def dashboard():
     stats = {
         "total_juegos":    conn.execute("SELECT COUNT(*) FROM juegos").fetchone()[0],
         "total_empleados": conn.execute("SELECT COUNT(*) FROM empleados").fetchone()[0],
-        "total_clientes":  conn.execute(
-            "SELECT COUNT(*) FROM clientes WHERE id != ?",
-            (CLIENTE_ANONIMO_ID,),
-        ).fetchone()[0],
+        "total_clientes":  contar_clientes_registrados(conn),
         "total_ventas":    conn.execute("SELECT COUNT(*) FROM ventas").fetchone()[0],
         "ingresos":        conn.execute("SELECT SUM(total) FROM ventas").fetchone()[0] or 0,
     }
@@ -142,10 +129,7 @@ def eliminar_empleado(emp_id):
 @requiere_admin
 def lista_clientes():
     conn = get_db()
-    clientes = conn.execute(
-        "SELECT * FROM clientes WHERE id != ?",
-        (CLIENTE_ANONIMO_ID,),
-    ).fetchall()
+    clientes = listar_clientes_registrados(conn)
     conn.close()
     return render_template("admin/clientes.html", clientes=clientes)
 
@@ -153,9 +137,13 @@ def lista_clientes():
 @admin_bp.route("/clientes/nuevo", methods=["GET", "POST"])
 @requiere_admin
 def nuevo_cliente():
+    next_url = request.values.get("next") or url_for("admin.lista_clientes")
+    if not next_url.startswith("/"):
+        next_url = url_for("admin.lista_clientes")
+
     if request.method == "POST":
         conn = get_db()
-        nuevo_id = _siguiente_cliente_id(conn)
+        nuevo_id = siguiente_cliente_id(conn)
         try:
             conn.execute(
                 """
@@ -179,9 +167,9 @@ def nuevo_cliente():
             flash(f"Error al registrar: {e}", "error")
         finally:
             conn.close()
-        return redirect(url_for("admin.lista_clientes"))
+        return redirect(next_url)
 
-    return render_template("admin/nuevo_cliente.html")
+    return render_template("admin/nuevo_cliente.html", next_url=next_url)
 
 
 @admin_bp.route("/clientes/eliminar/<cli_id>", methods=["POST"])

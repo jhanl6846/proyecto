@@ -12,7 +12,6 @@
     </thead>
     <tbody>
       {% for c in clientes %}
-      {% if c.id != 'C000' %}
       <tr>
         <td><span class="badge">{{ c.id }}</span></td>
         <td>{{ c.nombre }}</td>
@@ -27,7 +26,6 @@
           </form>
         </td>
       </tr>
-      {% endif %}
       {% endfor %}
       {% if not clientes %}
       <tr><td colspan="7" class="empty-row">No hay clientes registrados.</td></tr>
