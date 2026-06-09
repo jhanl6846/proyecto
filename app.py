@@ -103,7 +103,7 @@ else:
 
 
 
-#           como crear el entorno virtual
+#         como crear el entorno virtual
 # python -m venv proyecto
 #      activar entorno virtual
 # \proyecto\Scripts\Activate
@@ -114,12 +114,10 @@ else:
 # git add .
 # git commit -m "Actualizar "
 # git push origin main
-
 #        como instalar dependencias
 # pip install -r requirements.txt  
 #        como crear el archivo requirements.txt
 # pip freeze > requirements.txt
-
  #pip install Flask flasgger requests
 #  cd proyecto-_programacion
 # git pull origin main
